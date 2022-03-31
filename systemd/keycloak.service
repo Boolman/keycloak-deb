@@ -1,0 +1,16 @@
+# /etc/systemd/system/keycloak.service
+[Unit]
+Description=The Keycloak SSO Server
+After=syslog.target network.target
+Before=httpd.service
+
+[Service]
+User=keycloak
+LimitNOFILE=102642
+PIDFile=/var/run/keycloak/keycloak.pid
+ExecStart=/opt/keycloak/bin/kc.sh start
+StandardOutput=syslog
+
+[Install]
+WantedBy=multi-user.target
+

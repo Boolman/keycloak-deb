@@ -1,0 +1,63 @@
+version: "3"
+dotenv: [".env", "{{.HOME}}.env"]
+vars:
+  DESCRIPTION: keycloak
+  JAVA_DEPENDENCY: openjdk-17-jre-headless
+tasks:
+  default:
+    deps:
+      - task: deb
+  download:
+    vars:
+      URL: https://github.com/keycloak/keycloak/releases/download/{{.KEYCLOAK_VERSION}}/keycloak-{{.KEYCLOAK_VERSION}}.tar.gz
+      SHA_URL: https://github.com/keycloak/keycloak/releases/download/{{.KEYCLOAK_VERSION}}/keycloak-{{.KEYCLOAK_VERSION}}.tar.gz.sha1
+    cmds:
+      - cmd: |
+          mkdir tmp
+          wget {{.URL}} -O tmp/keycloak-{{.KEYCLOAK_VERSION}}.tar.gz
+          HASH=$(curl -S -L {{.SHA_URL}})
+          echo "${HASH}  tmp/keycloak-{{.KEYCLOAK_VERSION}}.tar.gz" | sha1sum -c
+    status:
+      - test -f tmp/keycloak-{{.KEYCLOAK_VERSION}}.tar.gz
+    generates:
+      - tmp/keycloak-{{.KEYCLOAK_VERSION}}.tar.gz
+  unzip:
+    deps:
+      - download
+    sources:
+      - tmp/keycloak-{{.KEYCLOAK_VERSION}}.tar.gz
+    generates:
+      - tmp/keycloak-{{.KEYCLOAK_VERSION}}/**
+    cmds:
+      - cmd: |
+          tar zxfv tmp/keycloak-{{.KEYCLOAK_VERSION}}.tar.gz -C tmp/
+
+  deb:
+    deps:
+      - unzip
+    sources:
+      - scripts/*
+      - systemd/keycloak.service
+      - tmp/keycloak-{{.KEYCLOAK_VERSION}}/**
+    generates:
+      - tmp/{{.NAME}}_{{.VERSION}}.deb
+    cmds:
+      - cmd: |
+          fpm -s dir -t deb -f \
+            -n {{.NAME}} \
+            -d '{{.JAVA_DEPENDENCY}}' \
+            -p tmp/{{.NAME}}_{{.VERSION}}.deb \
+            --license 'Apache 2.0 license' \
+            --version {{.VERSION}} \
+            --maintainer {{.MAINTAINER}} \
+            --description "{{.DESCRIPTION}}" \
+            --before-install scripts/adduser.sh \
+            --after-remove scripts/deluser.sh \
+            --deb-user keycloak \
+            --deb-group keycloak \
+            --deb-systemd systemd/keycloak.service \
+            --url https://github.com/keycloak/keycloak \
+            --config-files /opt/keycloak/conf/keycloak.conf \
+            --config-files /opt/keycloak/conf/cache-ispn.xml \
+            --deb-no-default-config-files \
+            tmp/keycloak-{{.KEYCLOAK_VERSION}}/=/opt/keycloak
