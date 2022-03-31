@@ -2,7 +2,6 @@
 [Unit]
 Description=The Keycloak SSO Server
 After=syslog.target network.target
-Before=httpd.service
 
 [Service]
 User=keycloak
